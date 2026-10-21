@@ -11,6 +11,7 @@ defmodule Broadcastex.Application do
       Broadcastex.AppStore,
       # Starts a worker by calling: Broadcastex.Worker.start_link(arg)
       {Registry, keys: :duplicate, name: Broadcastex.ChannelRegistry},
+      Broadcastex.PresenceManager,
       # {Broadcastex.Worker, arg}
       {Bandit, plug: Broadcastex.Router, port: 4000}
     ]
