@@ -8,8 +8,9 @@ defmodule Broadcastex.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Broadcastex.AppStore,
       # Starts a worker by calling: Broadcastex.Worker.start_link(arg)
-      {Registry, keys: :unique, name: Broadcastex.ChannelRegistry},
+      {Registry, keys: :duplicate, name: Broadcastex.ChannelRegistry},
       # {Broadcastex.Worker, arg}
       {Bandit, plug: Broadcastex.Router, port: 4000}
     ]

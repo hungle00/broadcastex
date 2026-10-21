@@ -3,10 +3,19 @@
 ```
 wscat -c ws://localhost:4000/app/my-key
 ```
-
+2. Use Flask to get Auth token
+```
+curl -X POST http://localhost:5000/pusher/auth \
+  -H "Content-Type: application/json" \
+  -d '{"socket_id": "12345.15", "channel_name": "private-chat"}'
+```
+Flask will response something like:
+```
+{"auth": "my-app-key:a1b2c3d4e5f6..."}
+```
 2. Subscribe from wscat client:
 ```
-> {"event": "broadcastex:subscribe", "data": {"channel": "my-channel"}}
+> {"event": "broadcastex:subscribe", "data": {"channel": "private-chat", "auth": "my-app-key:a1b2c3d4e5f6..."}}
 < {"event":"broadcastex:subscription_succeeded","channel":"my-channel"}
 ```
 
