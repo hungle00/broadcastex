@@ -1,15 +1,54 @@
 defmodule Broadcastex.Router do
   use Plug.Router
+  require Logger
 
-  plug :match
+  plug(:match)
 
-  plug Plug.Parsers,
+  plug(Plug.Parsers,
     parsers: [:json],
     pass: ["application/json"],
     json_decoder: Jason,
     body_reader: {Broadcastex.Router, :cache_raw_body, []}
+  )
 
-  plug :dispatch
+  plug(:dispatch)
+
+  get "/dashboard/:app_id" do
+    dashboard_path = Application.app_dir(:broadcastex, "priv/static/dashboard.html")
+
+    conn
+    |> Plug.Conn.put_resp_content_type("text/html")
+    |> Plug.Conn.put_resp_header("cache-control", "no-store")
+    |> Plug.Conn.send_file(200, dashboard_path)
+  end
+
+  get "/apps/:app_id/channels" do
+    case Broadcastex.AppStore.get_app_by_id(app_id) do
+      {:ok, app} ->
+        snapshot = Broadcastex.PresenceManager.dashboard_snapshot(app_id)
+
+        response = %{
+          app: %{
+            id: app.app_id,
+            name: app.app_id,
+            key: app.key,
+            secret: app.secret
+          },
+          channel_count: snapshot.channel_count,
+          subscription_count: snapshot.subscription_count,
+          channels: snapshot.channels
+        }
+
+        send_json(conn, 200, response)
+
+      {:error, :not_found} ->
+        send_json(conn, 404, %{error: "App Not Found"})
+
+      {:error, reason} ->
+        Logger.error("Could not load dashboard app #{inspect(app_id)}: #{inspect(reason)}")
+        send_json(conn, 500, %{error: "Could not load dashboard"})
+    end
+  end
 
   def cache_raw_body(conn, opts) do
     {:ok, body, conn} = Plug.Conn.read_body(conn, opts)
@@ -20,12 +59,15 @@ defmodule Broadcastex.Router do
   # 1. Endpoint WebSocket cho Client kết nối
   get "/app/:app_key" do
     IO.inspect(app_key, label: "🔑 APP KEY RECEIVED")
+
     case Broadcastex.AppStore.get_app_by_key(app_key) do
       {:ok, app} ->
         IO.inspect(app, label: "✅ APP FOUND")
+
         conn
         |> WebSockAdapter.upgrade(Broadcastex.WebSocketHandler, [app: app], timeout: 60_000)
         |> halt()
+
       {:error, :not_found} ->
         send_resp(conn, 404, "Invalid App Key")
     end
@@ -36,7 +78,6 @@ defmodule Broadcastex.Router do
     with {:ok, app} <- Broadcastex.AppStore.get_app_by_id(app_id),
          raw_body <- conn.assigns[:raw_body],
          true <- Broadcastex.Auth.verify_rest_signature(conn, app.secret, raw_body) do
-
       %{"name" => event, "channels" => channels, "data" => data} = conn.body_params
 
       # Dispatch tới tất cả channels của App này trong Registry
@@ -58,5 +99,12 @@ defmodule Broadcastex.Router do
 
   match _ do
     send_resp(conn, 404, "Not Found")
+  end
+
+  defp send_json(conn, status, body) do
+    conn
+    |> Plug.Conn.put_resp_content_type("application/json")
+    |> Plug.Conn.put_resp_header("cache-control", "no-store")
+    |> Plug.Conn.send_resp(status, Jason.encode!(body))
   end
 end

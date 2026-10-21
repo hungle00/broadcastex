@@ -121,8 +121,20 @@ defmodule Broadcastex.WebSocketHandler do
   end
 
   defp finish_subscription(channel, :regular, state) do
-    state = %{state | channels: MapSet.put(state.channels, channel)}
-    push_subscription_succeeded(channel, nil, state)
+    case Broadcastex.PresenceManager.track_subscription(
+           state.app.app_id,
+           channel,
+           state.socket_id,
+           self()
+         ) do
+      :ok ->
+        state = %{state | channels: MapSet.put(state.channels, channel)}
+        push_subscription_succeeded(channel, nil, state)
+
+      {:error, reason} ->
+        unregister_if_new(channel, state)
+        push_error("Could not track channel subscription: #{inspect(reason)}", state)
+    end
   end
 
   defp finish_subscription(channel, {:presence, user_id, user_info}, state) do
@@ -167,9 +179,7 @@ defmodule Broadcastex.WebSocketHandler do
 
   defp unsubscribe(%{"channel" => channel}, state) when is_binary(channel) do
     if MapSet.member?(state.channels, channel) do
-      if String.starts_with?(channel, "presence-") do
-        :ok = Broadcastex.PresenceManager.leave(state.app.app_id, channel, self())
-      end
+      :ok = Broadcastex.PresenceManager.leave(state.app.app_id, channel, self())
 
       Registry.unregister(Broadcastex.ChannelRegistry, "#{state.app.app_id}:#{channel}")
       {:ok, %{state | channels: MapSet.delete(state.channels, channel)}}

@@ -65,3 +65,13 @@ process. Clients can explicitly leave with:
   }
 }
 ```
+
+## Demo dashboard
+
+Open `/dashboard/<app_id>` to see active channels, connection counts, and
+presence user details. The page loads channel data from
+`/apps/<app_id>/channels` and refreshes automatically every 5 seconds.
+
+This demo route has no authentication and displays the app secret (hidden
+visually until toggled) as well as presence `user_info`. Anyone who can access
+the URL can inspect those values; do not expose it to an untrusted network.
