@@ -25,6 +25,24 @@ defmodule Broadcastex.Auth do
   end
 
   @doc """
+  Verifies a presence-channel signature over the exact `channel_data` JSON string.
+  """
+  def verify_presence_auth(auth_header, secret, socket_id, channel, channel_data)
+      when is_binary(auth_header) and is_binary(channel_data) do
+    case String.split(auth_header, ":", parts: 2) do
+      [_key, signature] ->
+        string_to_sign = "#{socket_id}:#{channel}:#{channel_data}"
+        expected_signature = hmac_sha256(secret, string_to_sign)
+        Plug.Crypto.secure_compare(signature, expected_signature)
+
+      _ ->
+        false
+    end
+  end
+
+  def verify_presence_auth(_auth_header, _secret, _socket_id, _channel, _channel_data), do: false
+
+  @doc """
   Xác thực chữ ký HMAC cho HTTP REST API Trigger.
   """
   def verify_rest_signature(conn, app_secret, body_raw) do
@@ -36,7 +54,6 @@ defmodule Broadcastex.Auth do
          {:ok, body_md5} <- Map.fetch(params, "body_md5"),
          true <- validate_timestamp(auth_timestamp),
          true <- validate_body_md5(body_raw, body_md5) do
-
       # 1. Bỏ auth_signature ra khỏi query params để sắp xếp lại string_to_sign
       filtered_params = Map.drop(params, ["auth_signature"])
 
@@ -60,8 +77,11 @@ defmodule Broadcastex.Auth do
     case Integer.parse(timestamp_str) do
       {ts, _} ->
         now = DateTime.utc_now() |> DateTime.to_unix()
-        abs(now - ts) <= 600 # Cho phép lệch tối đa 10 phút (600s)
-      _ -> false
+        # Cho phép lệch tối đa 10 phút (600s)
+        abs(now - ts) <= 600
+
+      _ ->
+        false
     end
   end
 

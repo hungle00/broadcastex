@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broadcastex Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f6f8fa;
+      color: #1f2328;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #fff;
+      border-bottom: 1px solid #d0d7de;
+    }
+    header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 6px;
+      color: #1a7f37;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .live-dot::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #1a7f37;
+      content: "";
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .stats-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat-card, .panel {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04);
+    }
+    .stat-card { padding: 12px 16px; }
+    .stat-card .label {
+      margin-bottom: 4px;
+      color: #636c76;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .stat-card .value { color: #0969da; font-size: 28px; font-weight: 700; line-height: 1.1; }
+    .panel { margin-bottom: 16px; overflow: hidden; }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #d0d7de;
+      background: #f6f8fa;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .panel-body { padding: 16px; }
+    .app-name { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+    .app-id, .muted { color: #636c76; font-size: 13px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      padding: 6px 12px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2328;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    button:hover { background: #f3f4f6; }
+    button:focus-visible { outline: 2px solid #0969da; outline-offset: 2px; }
+    button.primary { border-color: #1f883d; background: #1f883d; color: #fff; }
+    button.primary:hover { background: #1a7f37; }
+    .panel-body table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 8px 16px;
+      border-bottom: 1px solid #d0d7de;
+      background: #fff;
+      color: #636c76;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    td { padding: 10px 16px; border-bottom: 1px solid #e1e4e8; font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border: 1px solid #54aeff4d;
+      border-radius: 10px;
+      background: #ddf4ff;
+      color: #0969da;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .badge.private { border-color: #ff81824d; background: #ffebe9; color: #cf222e; }
+    .badge.presence { border-color: #bf87f7; background: #fbefff; color: #8250df; }
+    .empty-state { padding: 20px; color: #636c76; font-size: 13px; text-align: center; }
+    .status { margin: 0; color: #636c76; font-size: 12px; font-weight: 400; }
+    .status.error { color: #cf222e; }
+    label { display: block; margin-bottom: 6px; color: #636c76; font-size: 12px; font-weight: 600; }
+    input {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2328;
+      font: inherit;
+      font-size: 13px;
+    }
+    .credential-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .credential-field { min-width: 0; }
+    .secret-control { display: flex; gap: 8px; }
+    .secret-control input { flex: 1; min-width: 0; }
+    .member-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+    .member-list li { padding: 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+    .member-list pre { margin-top: 6px; }
+    .table-wrap { overflow-x: auto; }
+    pre {
+      overflow-x: auto;
+      margin: 0;
+      padding: 12px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #f6f8fa;
+      font-size: 12px;
+    }
+    [hidden] { display: none !important; }
+    @media (max-width: 560px) {
+      header { padding: 12px 16px; }
+      .container { padding: 16px; }
+      .stats-row { gap: 8px; }
+      .stat-card { padding: 10px 12px; }
+      .stat-card .value { font-size: 24px; }
+      .panel-body { padding: 12px; }
+      th, td { padding: 8px 10px; }
+      .credential-grid { grid-template-columns: 1fr; }
+      .secret-control { align-items: stretch; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Broadcastex</h1>
+    <span id="liveIndicator" class="live-dot" hidden>Live</span>
+  </header>
+
+  <main class="container">
+    <section id="dashboard" aria-label="App dashboard">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="label">Active Channels</div>
+          <div class="value" id="channelCount">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Active Subscriptions</div>
+          <div class="value" id="subscriberCount">0</div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <span>Current app</span>
+          <span id="appStatus" class="status" role="status" aria-live="polite">Loading app...</span>
+        </div>
+        <div class="panel-body">
+          <p id="currentAppName" class="app-name">Loading...</p>
+          <p id="currentAppId" class="app-id"></p>
+          <div class="actions" style="margin: 14px 0;">
+            <button id="refreshChannels" class="primary" type="button">Refresh now</button>
+          </div>
+          <div class="credential-grid">
+            <div class="credential-field">
+              <label for="appKey">App key</label>
+              <input id="appKey" type="text" readonly>
+            </div>
+            <div class="credential-field">
+              <label for="appSecret">App secret</label>
+              <div class="secret-control">
+                <input id="appSecret" type="password" readonly>
+                <button id="toggleSecret" type="button" aria-pressed="false">Show</button>
+              </div>
+            </div>
+          </div>
+          <p class="muted">Demo dashboard: the app secret and presence user details are available to anyone who can access this URL.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <span>Channels</span>
+          <span id="channelStatus" class="status" role="status" aria-live="polite">Loading channels...</span>
+        </div>
+        <div id="channelContent" class="panel-body">
+          <div id="emptyChannels" class="empty-state">No active channels</div>
+          <div class="table-wrap">
+            <table id="channelTable" hidden>
+              <thead>
+                <tr><th>Channel</th><th>Type</th><th>Subscribers</th><th>Connections</th><th>Presence members</th></tr>
+              </thead>
+              <tbody id="channelRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const channelRows = document.getElementById('channelRows');
+    const channelTable = document.getElementById('channelTable');
+    const emptyChannels = document.getElementById('emptyChannels');
+    const channelStatus = document.getElementById('channelStatus');
+    const appStatus = document.getElementById('appStatus');
+    const appId = decodeURIComponent(window.location.pathname.split('/').filter(Boolean).at(-1) || '');
+    let loading = false;
+
+    function setStatus(element, message, isError = false) {
+      element.textContent = message;
+      element.classList.toggle('error', isError);
+    }
+
+    function createCell(value) {
+      const cell = document.createElement('td');
+      cell.textContent = value ?? '';
+      return cell;
+    }
+
+    function makePresenceCell(channel) {
+      const cell = document.createElement('td');
+      if (channel.type !== 'presence') {
+        cell.textContent = '—';
+        return cell;
+      }
+
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = `View users (${channel.user_count || 0})`;
+      details.append(summary);
+
+      const list = document.createElement('ul');
+      list.className = 'member-list';
+      for (const user of channel.users || []) {
+        const item = document.createElement('li');
+        const identity = document.createElement('strong');
+        identity.textContent = user.user_id;
+        const sockets = document.createElement('span');
+        sockets.className = 'muted';
+        sockets.textContent = ` — ${user.socket_count} connection(s)`;
+        const info = document.createElement('pre');
+        info.textContent = JSON.stringify(user.user_info, null, 2);
+        item.append(identity, sockets, info);
+        list.append(item);
+      }
+
+      if ((channel.users || []).length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'muted';
+        empty.textContent = 'No active members';
+        list.append(empty);
+      }
+
+      details.append(list);
+      cell.append(details);
+      return cell;
+    }
+
+    function renderChannels(channels) {
+      channelRows.replaceChildren();
+      channelTable.hidden = channels.length === 0;
+      emptyChannels.hidden = channels.length !== 0;
+
+      for (const channel of channels) {
+        const row = document.createElement('tr');
+        const name = createCell(channel.name);
+        const typeCell = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = `badge ${channel.type === 'private' ? 'private' : channel.type === 'presence' ? 'presence' : ''}`;
+        badge.textContent = channel.type;
+        typeCell.append(badge);
+        row.append(
+          name,
+          typeCell,
+          createCell(String(channel.subscription_count)),
+          createCell(String(channel.socket_count)),
+          makePresenceCell(channel)
+        );
+        channelRows.append(row);
+      }
+    }
+
+    async function loadChannels() {
+      if (loading) return;
+      loading = true;
+      channelStatus.textContent = 'Loading channels...';
+      try {
+        const response = await fetch(`/apps/${encodeURIComponent(appId)}/channels`, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load channels');
+
+        const channels = Array.isArray(data.channels) ? data.channels : [];
+        document.getElementById('channelCount').textContent = data.channel_count;
+        document.getElementById('subscriberCount').textContent = data.subscription_count;
+        document.getElementById('currentAppName').textContent = data.app.name;
+        document.getElementById('currentAppId').textContent = `App ID: ${data.app.id}`;
+        document.getElementById('appKey').value = data.app.key;
+        document.getElementById('appSecret').value = data.app.secret;
+        document.getElementById('liveIndicator').hidden = false;
+        renderChannels(channels);
+        setStatus(appStatus, `Updated ${new Date().toLocaleTimeString()}`);
+        setStatus(channelStatus, `${channels.length} active channel(s)`);
+      } catch (error) {
+        setStatus(appStatus, error.message, true);
+        setStatus(channelStatus, 'Could not refresh channel data', true);
+      } finally {
+        loading = false;
+      }
+    }
+
+    document.getElementById('refreshChannels').addEventListener('click', loadChannels);
+    document.getElementById('toggleSecret').addEventListener('click', event => {
+      const secret = document.getElementById('appSecret');
+      const showing = secret.type === 'text';
+      secret.type = showing ? 'password' : 'text';
+      event.currentTarget.textContent = showing ? 'Show' : 'Hide';
+      event.currentTarget.setAttribute('aria-pressed', String(!showing));
+    });
+
+    loadChannels();
+    setInterval(loadChannels, 5000);
+  </script>
+</body>
+</html>
