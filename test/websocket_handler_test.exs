@@ -32,7 +32,11 @@ defmodule Broadcastex.WebSocketHandlerTest do
 
     on_exit(fn ->
       Broadcastex.PresenceManager.leave(app.app_id, channel, self())
-      Registry.unregister(Broadcastex.ChannelRegistry, "#{app.app_id}:#{channel}")
+
+      Phoenix.PubSub.unsubscribe(
+        Broadcastex.PubSub,
+        Broadcastex.channel_topic(app.app_id, channel)
+      )
     end)
 
     assert {:push, {:text, response}, state} =
@@ -49,6 +53,20 @@ defmodule Broadcastex.WebSocketHandlerTest do
                }
              }
            } = Jason.decode!(response)
+
+    event_payload = Jason.encode!(%{event: "test:event", channel: channel, data: %{value: 1}})
+
+    assert :ok =
+             Phoenix.PubSub.broadcast(
+               Broadcastex.PubSub,
+               Broadcastex.channel_topic(app.app_id, channel),
+               {:broadcast, event_payload}
+             )
+
+    assert_receive {:broadcast, ^event_payload}
+
+    assert {:push, {:text, ^event_payload}, state} =
+             Broadcastex.WebSocketHandler.handle_info({:broadcast, event_payload}, state)
 
     unsubscribe =
       Jason.encode!(%{

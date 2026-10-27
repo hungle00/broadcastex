@@ -326,7 +326,7 @@ defmodule Broadcastex.PresenceManager do
     %{ids: ids, hash: hash, count: length(ids)}
   end
 
-  defp broadcast_member({app_id, channel, user_id}, action, user_info, excluded_pid, state) do
+  defp broadcast_member({app_id, channel, user_id}, action, user_info, excluded_pid, _state) do
     payload =
       Jason.encode!(%{
         event: "broadcastex_internal:member_#{action}",
@@ -334,14 +334,11 @@ defmodule Broadcastex.PresenceManager do
         data: %{user_id: user_id, user_info: user_info}
       })
 
-    Enum.each(state.connections, fn
-      {^excluded_pid, _connection} ->
-        :ok
-
-      {pid, connection} ->
-        if MapSet.member?(connection.subscriptions, {app_id, channel}) do
-          send(pid, {:broadcast, payload})
-        end
-    end)
+    Phoenix.PubSub.broadcast_from(
+      Broadcastex.PubSub,
+      excluded_pid,
+      Broadcastex.channel_topic(app_id, channel),
+      {:broadcast, payload}
+    )
   end
 end

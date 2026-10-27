@@ -48,7 +48,7 @@ defmodule Broadcastex.WebSocketHandler do
 
   defp subscribe(%{"channel" => channel} = data, state) when is_binary(channel) do
     with {:ok, subscription} <- authorize_subscription(channel, data, state),
-         :ok <- register_channel(channel, state) do
+         :ok <- subscribe_channel(channel, state) do
       finish_subscription(channel, subscription, state)
     else
       {:error, reason} -> push_error(reason, state)
@@ -107,15 +107,16 @@ defmodule Broadcastex.WebSocketHandler do
 
   defp presence_identity(_data), do: {:error, :invalid_presence_identity}
 
-  defp register_channel(channel, state) do
+  defp subscribe_channel(channel, state) do
     if MapSet.member?(state.channels, channel) do
       :ok
     else
-      registry_key = "#{state.app.app_id}:#{channel}"
-
-      case Registry.register(Broadcastex.ChannelRegistry, registry_key, nil) do
-        {:ok, _} -> :ok
-        {:error, reason} -> {:error, "Could not register channel: #{inspect(reason)}"}
+      case Phoenix.PubSub.subscribe(
+             Broadcastex.PubSub,
+             Broadcastex.channel_topic(state.app.app_id, channel)
+           ) do
+        :ok -> :ok
+        {:error, reason} -> {:error, "Could not subscribe to channel: #{inspect(reason)}"}
       end
     end
   end
@@ -132,7 +133,7 @@ defmodule Broadcastex.WebSocketHandler do
         push_subscription_succeeded(channel, nil, state)
 
       {:error, reason} ->
-        unregister_if_new(channel, state)
+        unsubscribe_if_new(channel, state)
         push_error("Could not track channel subscription: #{inspect(reason)}", state)
     end
   end
@@ -151,7 +152,7 @@ defmodule Broadcastex.WebSocketHandler do
         push_subscription_succeeded(channel, presence, state)
 
       {:error, reason} ->
-        unregister_if_new(channel, state)
+        unsubscribe_if_new(channel, state)
         push_error("Could not join presence channel: #{inspect(reason)}", state)
     end
   end
@@ -181,7 +182,11 @@ defmodule Broadcastex.WebSocketHandler do
     if MapSet.member?(state.channels, channel) do
       :ok = Broadcastex.PresenceManager.leave(state.app.app_id, channel, self())
 
-      Registry.unregister(Broadcastex.ChannelRegistry, "#{state.app.app_id}:#{channel}")
+      Phoenix.PubSub.unsubscribe(
+        Broadcastex.PubSub,
+        Broadcastex.channel_topic(state.app.app_id, channel)
+      )
+
       {:ok, %{state | channels: MapSet.delete(state.channels, channel)}}
     else
       {:ok, state}
@@ -190,9 +195,12 @@ defmodule Broadcastex.WebSocketHandler do
 
   defp unsubscribe(_data, state), do: push_error("Channel is required", state)
 
-  defp unregister_if_new(channel, state) do
+  defp unsubscribe_if_new(channel, state) do
     unless MapSet.member?(state.channels, channel) do
-      Registry.unregister(Broadcastex.ChannelRegistry, "#{state.app.app_id}:#{channel}")
+      Phoenix.PubSub.unsubscribe(
+        Broadcastex.PubSub,
+        Broadcastex.channel_topic(state.app.app_id, channel)
+      )
     end
   end
 
