@@ -80,14 +80,14 @@ defmodule Broadcastex.Router do
          true <- Broadcastex.Auth.verify_rest_signature(conn, app.secret, raw_body) do
       %{"name" => event, "channels" => channels, "data" => data} = conn.body_params
 
-      # Dispatch tới tất cả channels của App này trong Registry
       Enum.each(channels, fn channel ->
-        registry_key = "#{app.app_id}:#{channel}"
+        payload = Jason.encode!(%{event: event, channel: channel, data: data})
 
-        Registry.dispatch(Broadcastex.ChannelRegistry, registry_key, fn entries ->
-          payload = Jason.encode!(%{event: event, channel: channel, data: data})
-          for {pid, _} <- entries, do: send(pid, {:broadcast, payload})
-        end)
+        Phoenix.PubSub.broadcast(
+          Broadcastex.PubSub,
+          Broadcastex.channel_topic(app.app_id, channel),
+          {:broadcast, payload}
+        )
       end)
 
       send_resp(conn, 200, Jason.encode!(%{status: "ok"}))

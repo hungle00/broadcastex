@@ -24,7 +24,8 @@ defmodule Broadcastex.MixProject do
     [
       {:bandit, "~> 1.0"},
       {:websock_adapter, "~> 0.5"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:phoenix_pubsub, "~> 2.0"}
     ]
   end
 end

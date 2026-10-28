@@ -6,6 +6,19 @@ defmodule Broadcastex.PresenceManagerTest do
     channel = "presence-test-#{System.unique_integer([:positive])}"
     user_info = %{"name" => "Alice"}
 
+    assert :ok =
+             Phoenix.PubSub.subscribe(
+               Broadcastex.PubSub,
+               Broadcastex.channel_topic(app_id, channel)
+             )
+
+    on_exit(fn ->
+      Phoenix.PubSub.unsubscribe(
+        Broadcastex.PubSub,
+        Broadcastex.channel_topic(app_id, channel)
+      )
+    end)
+
     assert {:ok, %{count: 1, ids: ["observer"]}} =
              Broadcastex.PresenceManager.join(
                app_id,

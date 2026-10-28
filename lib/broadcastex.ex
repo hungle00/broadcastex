@@ -15,4 +15,6 @@ defmodule Broadcastex do
   def hello do
     :world
   end
+
+  def channel_topic(app_id, channel), do: "broadcastex:#{app_id}:#{channel}"
 end
